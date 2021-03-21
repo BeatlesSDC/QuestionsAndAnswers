@@ -18,6 +18,7 @@ app.get('/qa/questions', (req, res) => {
       console.error('Error retrieving question & answer data');
       res.sendStatus(404);
     } else {
+      console.log('Successfully fetched question & answer data');
       //format data as client expects it (answers go in questions)
     }
   });
@@ -28,6 +29,7 @@ app.post('/qa/questions', (req, res) => {
     if (err) {
       console.error('Failed to write question to database');
     } else {
+      console.log('Successfully posted question');
       res.sendStatus(200);
     }
   });
@@ -39,19 +41,44 @@ app.post('/qa/questions/:question_id/answers', (req, res) => {
       console.log('Failed to write answer to database');
       res.sendStatus(400);
     } else {
+      console.log('Successfully posted answer');
       res.sendStatus(200);
     }
   });
 });
 
 app.put('/qa/questions/:question_id/helpful', (req, res) => {
-
+  db.upvoteQuestion(req.params.question_id, (err, result) => {
+    if (err) {
+      console.error(`Failed to update question #${req.params.question_id}'s helpfulness`);
+      res.sendStatus(400);
+    } else {
+      console.log('Successfully updated question helpfulness');
+      res.sendStatus(200);
+    }
+  });
 });
 
 app.put('/qa/answers/:answer_id/helpful', (req, res) => {
-
+  db.upvoteAnswer(req.params.answer_id, (err, result) => {
+    if (err) {
+      console.error(`Failed to update answer #${req.params.answer_id}'s helpfulness`)
+      res.sendStatus(400);
+    } else {
+      console.log('Successfully updated answer helpfulness');
+      res.sendStatus(200);
+    }
+  })
 });
 
 app.put('/qa/answers/:answer_id/report', (req, res) => {
-
+  db.reportAnswer(req.params.answer_id, (err, result) => {
+    if (err) {
+      console.error(`Failed to report answer #${req.params.answer_id}`);
+      res.sendStatus(400);
+    } else {
+      console.log('Successfully reported answer');
+      res.sendStatus(200);
+    }
+  });
 });

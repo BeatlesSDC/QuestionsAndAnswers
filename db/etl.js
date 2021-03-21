@@ -57,14 +57,14 @@ const importData = function(cb){
 const formatQuestions = function(cb){
   const quesQuery = `
     INSERT INTO questions
-    SELECT
+    SELECT id, product_id, body, date_written, asker_name, helpful
     FROM importquestions
     WHERE reported = false
     ORDER BY product_id
   `;
   const reportedQues = `
-    INSERT INTO questions
-    SELECT
+    INSERT INTO reportedquestions
+    SELECT id, product_id, body, date_written, asker_name, helpful
     FROM importquestions
     WHERE reported = true
     ORDER BY product_id
@@ -96,7 +96,7 @@ const formatAnswers = function(cb){
     ORDER BY question_id
   `;
   const reportedAns = `
-    INSERT INTO answers
+    INSERT INTO reportedanswers
     SELECT id, question_id, body, date_written, answerer_name, helpful
     FROM importanswers
     WHERE reported = true
@@ -111,6 +111,7 @@ const formatAnswers = function(cb){
         if (error) {
           console.error('error transfering reported answers data: ', error)
         } else {
+          //select question_id from reportedquestions, for each remove * from answers & insert into reportedanswers
           console.log('All answers data successfully transformed')
           cb();
         }
@@ -125,6 +126,7 @@ const formatPhotos = function(){
     SELECT * FROM importphotos
     ORDER BY answer_id
   `;
+  //select answer_id from reportedanswers, for each remove * from photos & insert into reported photos
   connection.query(photoQuery, (err, res) => {
     if (err) {
       console.error('Error transfering photos data: ', err);

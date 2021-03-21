@@ -22,6 +22,17 @@ const postAnswer = (answer, cb) => {
 
 };
 
+const upvoteQuestion = (id, cb) => {
+
+}
+
+const upvoteAnswer = (id, cb) => {
+
+}
+
+const reportAnswer = (id, cb) => {
+
+}
 module.exports = {
   getQandA,
   postQuestion,
