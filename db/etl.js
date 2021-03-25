@@ -9,28 +9,81 @@ connection.connect()
 .then(()=>{console.log('Postgres connection successful...');})
 .then(()=>{
   // importData(formatQuestions);
-  formatQuestions(formatAnswers);
+  //formatQuestions(formatAnswers);
+  console.log('No transformations specified');
 })
 .catch((err)=>{console.log('Connection error: ', err);})
+
+const fixedTransformations = function(cb){
+  let query = `SELECT question_id FROM reportedquestions`;
+  //returns [{question_id: 2}, {question_id: 6}, {question_id: 8}, etc.]
+  // console.log('true? ', res.rows[0].question_id === 2);
+  //console.log('thus, this returns true: ', res.rows[0].question_id === 2);
+
+  //copy reported answers from import table
+  query = `INSERT INTO reportedanswers
+  SELECT id, question_id, body, date_written, answerer_name, helpful
+  FROM importanswers
+  WHERE reported = true
+  ORDER BY question_id;`;
+  //delete reported answers from import table
+  query = `DELETE FROM importanswersbackup WHERE reported = true;`
+
+  //this inner join allows you to pull all pertinent 'answers' data from imports for answers related to reported questions
+  query = `SELECT importanswers.id, importanswers.question_id, importanswers.body, importanswers.date_written, importanswers.answerer_name, importanswers.helpful FROM importanswers JOIN reportedquestions ON importanswers.question_id = reportedquestions.question_id;`
+
+  //this takes that inner join and successfully inserts the data into reportedanswers
+  query = `INSERT INTO reportedanswers SELECT importanswers.id, importanswers.question_id, importanswers.body, importanswers.date_written, importanswers.answerer_name, importanswers.helpful FROM importanswers JOIN reportedquestions ON importanswers.question_id = reportedquestions.question_id;`
+  //now, to delete the above data from importanswers we do
+  query = `DELETE FROM importanswersbackup WHERE question_id IN (SELECT question_id FROM reportedquestions)`;
+
+  //finally, we can simply insert into answers all non-deleted answers from imports
+  query = `INSERT INTO answers
+  SELECT id, question_id, body, date_written, answerer_name, helpful
+  FROM importanswers
+  WHERE reported = false
+  ORDER BY question_id;`;
+
+  //copy photos associated with reported answers to reportedphotos
+  query = `INSERT INTO reportedphotos SELECT importphotos.id, importphotos.answer_id, importphotos.url FROM importphotos JOIN reportedanswers ON importphotos.answer_id = reportedanswers.answer_id;`
+  //copy photos to be rendered into photos
+  query = `INSERT INTO photos SELECT importphotos.id, importphotos.answer_id, importphotos.url FROM importphotos JOIN answers ON importphotos.answer_id = answers.answer_id;`
+
+  //trash queries:
+  query = `SELECT * FROM importanswers WHERE reported = true LIMIT 5;`;
+  query = `INSERT INTO reportedanswers
+  SELECT id, question_id, body, date_written, answerer_name, helpful
+  FROM importanswers
+  WHERE reported = true
+  ORDER BY question_id;`
+  query = `SELECT question_id FROM reportedanswers`;
+  connection.query(query, (err, res) => {
+    if(err){
+      console.log('Error hit: ', err);
+    }else{
+      console.log('Success! res: ', res);
+    }
+  });
+}
 
 const importData = function(cb){
   //let path = '/private/tmp/data/csv/';
   console.log('copying csv data......');
   let ansQuery = `
-    COPY importanswers(id, question_id, body, date_written, answerer_name, answerer_email, reported, helpful)
+    COPY importanswersbackup(id, question_id, body, date_written, answerer_name, answerer_email, reported, helpful)
     FROM '/private/tmp/data/csv/answers.csv'
     DELIMITER ','
-    CSV HEADER`;
+    CSV HEADER;`;
   let quesQuery = `
     COPY importquestions (id, product_id, body, date_written, asker_name, asker_email, reported, helpful)
     FROM '/private/tmp/data/csv/questions.csv'
     DELIMITER ','
-    CSV HEADER`;
+    CSV HEADER;`;
   let photoQuery = `
     COPY importphotos (id, answer_id, url)
     FROM '/private/tmp/data/csv/answers_photos.csv'
     DELIMITER ','
-    CSV HEADER`;
+    CSV HEADER;`;
   connection.query(ansQuery, (err, res) => {
     if (err) {
       console.error('Error importing answers data: ', err);
@@ -56,18 +109,18 @@ const importData = function(cb){
 
 const formatQuestions = function(cb){
   const quesQuery = `
-    INSERT INTO questions
-    SELECT id, product_id, body, date_written, asker_name, helpful
-    FROM importquestions
-    WHERE reported = false
-    ORDER BY product_id
+  INSERT INTO questions
+  SELECT id, product_id, body, date_written, asker_name, helpful
+  FROM importquestions
+  WHERE reported = false
+  ORDER BY product_id;
   `;
   const reportedQues = `
     INSERT INTO reportedquestions
     SELECT id, product_id, body, date_written, asker_name, helpful
     FROM importquestions
     WHERE reported = true
-    ORDER BY product_id
+    ORDER BY product_id;
   `;
   connection.query(quesQuery, (err, res) => {
     if (err) {
@@ -93,14 +146,14 @@ const formatAnswers = function(cb){
     SELECT id, question_id, body, date_written, answerer_name, helpful
     FROM importanswers
     WHERE reported = false
-    ORDER BY question_id
+    ORDER BY question_id;
   `;
   const reportedAns = `
     INSERT INTO reportedanswers
     SELECT id, question_id, body, date_written, answerer_name, helpful
     FROM importanswers
     WHERE reported = true
-    ORDER BY question_id
+    ORDER BY question_id;
   `;
   connection.query(ansQuery, (err, res) => {
     if (err) {
@@ -124,7 +177,7 @@ const formatPhotos = function(){
   const photoQuery = `
     INSERT INTO photos
     SELECT * FROM importphotos
-    ORDER BY answer_id
+    ORDER BY answer_id;
   `;
   //select answer_id from reportedanswers, for each remove * from photos & insert into reported photos
   connection.query(photoQuery, (err, res) => {

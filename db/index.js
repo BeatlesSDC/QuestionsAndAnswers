@@ -6,26 +6,55 @@ const connection = new postgres.Client({
   database: 'qanda'
 });
 
-connection.connect()
+// connection.connect()
+//   .then(()=>{console.log('Postgres connection successful...');})
+//   .then(connection.end())
+//   .catch((err)=>{console.log('Connection error: ', err);})
+
+const connect = (queryCB, params, resultCB) => {
+  console.log('Connecting...')
+  connection.connect()
   .then(()=>{console.log('Postgres connection successful...');})
-  .catch((err)=>{console.log('Connection error: ', err);})
+  .then(() => {
+    console.log('params:', params);
+    queryCB(params, resultCB);
+  })
+  .catch((err)=>{console.error('Connection error: ', err);})
+}
+
+const disconnect = () => {
+  connection.end(err => {
+    if (err) {
+      console.error('Could not disconnect from database...', err);
+    } else {
+      console.log('Disconnected from database');
+    }
+  });
+}
 
 const getQandA = (product, cb) => {
   //query for questions, query for answers
   const quesQuery = `SELECT * FROM questions WHERE product_id = ${product}`;
+  console.log('product:', product);
+  console.log('querying db for questions data...');
   connection.query(quesQuery, (err, res) => {
     if (err) {
+      console.log('errored');
       cb(err, null);
     } else {
-      let questions = res;
+      console.log('querying db for answers data...');
       //FIX THE BELOW
-      const ansQuery = 'SELECT * FROM answers'; //how do i filter for question IDs?? -> JOINS????
-      connection.query(ansQuery, (error, result) => {
+      //const ansQuery = `SELECT answers.answer_id, answers.question_id, answers.answer_body, answers.answer_date, answers.answerer_name, answers.answer_helpfulness FROM answers JOIN questions ON answers.question_id = questions.question_id;`;
+      console.log('ques:', res.rows);
+      const ansQuery = `SELECT * FROM answers WHERE question_id IN (SELECT question_id FROM questions WHERE product_id = ${product});`;
+      const dummyQuery = `SELECT * FROM answers WHERE question_id = 69640;`;
+      // const ansQuery = `SELECT * FROM answers WHERE question_id IN (SELECT question_id FROM ${res.rows})`;
+      // const ansQuery = `SELECT * FROM answers WHERE question_id IN (${res.rows[0].question_id}, ${res.rows[1].question_id})`;
+      connection.query(dummyQuery, (error, result) => {
         if (error) {
           cb(error, null);
         } else {
-          let answers = result;
-          cb(null, {questions: questions, answers: answers});
+          cb(null, {questions: res.rows, answers: result.rows});
         }
       });
     }
@@ -36,7 +65,7 @@ const postQuestion = (question, cb) => {
   // question === {name, body, email, product_id}
   const query = `INSERT INTO questions (product_id, question_body, asker_name, question_helpfulness)
   VALUES (${question.product_id}, ${question.body}, ${question.name}, 0)`;
-  connection.query(query, (err, res) => {
+  connection.query(query, (err) => {
     if (err) {
       cb(err);
     } else {
@@ -49,7 +78,7 @@ const postAnswer = (answer, question, cb) => {
   // answer === {name, body, email}
   const query = `INSERT INTO answers (question_id, answer_body, answerer_name, helpfulness)
   VALUES (${question}, ${answer.body}, ${answer.name}, 0)`;
-  connection.query(query, (err, res) => {
+  connection.query(query, (err) => {
     if (err) {
       cb(err);
     } else {
@@ -107,7 +136,7 @@ const reportAnswer = (id, cb) => {
       cb(error);
     } else {
       console.log('fetched answer ', data);
-      //insert into 'reportedanswers'
+      //insert into 'reportedanswers', then delete from 'answers'
       const addReported = ``; //LOOK AT DATA && WRITE ME!!!
       connection.query(addReported, (err, res) => {
         if (err) {
@@ -123,12 +152,13 @@ const reportAnswer = (id, cb) => {
           });
         }
       });
-      //delete from 'answers'
     }
   });
 }
 
 module.exports = {
+  connect,
+  disconnect,
   getQandA,
   postQuestion,
   postAnswer,
