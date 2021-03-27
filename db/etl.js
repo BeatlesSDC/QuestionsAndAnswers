@@ -9,13 +9,13 @@ connection.connect()
 .then(()=>{console.log('Postgres connection successful...');})
 .then(()=>{
   // to import data from csv, then format
-  importData(formatQuestions);
+  // importData(formatQuestions);
 
   //to only import data
   // importData(connection.end);
 
   //to format imported data
-  //formatQuestions(formatAnswers);
+  formatQuestions(formatAnswers);
 
   // console.log('No transformations specified');
 })

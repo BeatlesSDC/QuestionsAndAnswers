@@ -24,6 +24,47 @@ app.get('/qa/questions', (req, res) => {
       //data === {questions: query-results, answers: query-results}
       //data.questions & data.answers are each [{}]
 
+      var photos = {}
+      for(let i = 0; i < data.photos.length; i++){
+        let photo = data.photos[i];
+        if(!photos[photo.answer_id]){
+          photos[photo.answer_id] = [];
+        }
+        photos[photo.answer_id].push(data.photos.url);
+      }
+
+      //Client wants: {product_id: product_id, results: array of questions w/ answers {{}} inside}
+
+      var answers = {}; //{question_id: {answer{data}, answer{data}}, question_id: {answer{data}}, etc}
+      for(let i = 0; i < data.answers.length; i++) {
+        let answer = data.answers[i];
+        if(!answers[answer.question_id]){
+          answers[answer.question_id] = {}
+        }
+        answers[answer.question_id][answer.answer_id] = {
+          answerer_name: answer.answerer_name,
+          body: answer.answer_body,
+          date: answer.answer_date,
+          helpfulness: answer.answer_helpfulness,
+          id: answer.answer_id,
+          reported: false,
+          photos: photos[answer.answer_id] //fix me
+        }
+      }
+      var results = [];
+      for(let i = 0; i < data.questions.length; i++) {
+        var question = data.questions[i];
+        let data = {
+          answers: answers[question.question_id], //fix me
+          asker_name: question.asker_name,
+          question_body: question.question_body,
+          question_date: question.question_date,
+          question_helpfulness: question.question_helpfulness,
+          question_id: question.question_id,
+          reported: false
+        };
+        results.push(data);
+      }
       //iterate thru & format data as client expects it (answers go in questions, reported = false)
         //iterate data.answers, create a 'qIDs' obj w question_id keys & push answers to array
           //also give each answer a 'reported: false' attr
